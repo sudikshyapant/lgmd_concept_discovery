@@ -1,0 +1,11 @@
+torch
+torchvision
+transformers
+datasets
+scikit-learn
+numpy
+pillow
+matplotlib
+tqdm
+openai
+huggingface_hub

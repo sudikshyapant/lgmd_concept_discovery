@@ -1,0 +1,16 @@
+# secrets — never commit API keys / tokens
+secrets.json
+.env
+*.key
+
+# persistent artifacts (live on Google Drive when running on Colab)
+cache/
+results/
+viz/
+*.pt
+*.pkl
+
+# python
+__pycache__/
+*.pyc
+.ipynb_checkpoints/
