@@ -10,22 +10,6 @@ with a **ResNet-50** backbone — the only intentional deviation from the paper 
 40 classes). Methodology, hyperparameters (`r = 25` concepts), baselines, and tests match
 the paper.
 
-## Pipeline (paper section → module)
-
-| Step | Paper | Module |
-|------|-------|--------|
-| Encoder/head split, activations `Z` | 3.1 | `src/model_utils.py` |
-| Spatial unfolding `Ā = Unfold(Z)` | 3.2 | `src/lgmd.py` |
-| Concept vocabulary (LLM + filtering) | 3.3 | `src/concepts.py` |
-| Localized CLIP similarity maps `S` (red circle) | 3.3 | `src/clip_maps.py` |
-| Fit basis `W` (NNDSVD + PGD), `Ā ≈ S Wᵀ` | 3.4 | `src/lgmd.py` |
-| Inference NNLS `Ŝ`, reconstruction `Â` | 3.5 | `src/lgmd.py` |
-| Concept heatmaps | 3.6 | `src/viz.py` |
-| Baselines (Sec 4): ICE, CRAFT, FACE | — | `src/baselines.py` |
-| Metrics: Acc (predictive preservation) + C-Ins | Sec 4.2 | `src/metrics.py` |
-
-Entry point: **`lgmd.ipynb`**.
-
 ## Running on Google Colab (mounted via GitHub)
 
 1. Push this repo to GitHub.
@@ -53,7 +37,10 @@ under the repo (`cache/`, `results/`, `viz/`, also gitignored).
 - ICE/CRAFT/FACE all learn a basis `W` on training activations; validation reconstruction
   reuses LGMD's non-negative inference so methods are compared identically — matching the
   paper's "identical backbones, preprocessing, data splits, and concept counts r" (Sec 4).
+  
   The only difference is how `W` is learned (ICE = NMF, CRAFT = recursive NMF, FACE = KL-reg NMF).
+  
 - **C-Ins** is reported as the normalized area under the concept-insertion curve (Sec 4.2):
   how fast the true-class prediction is restored as top-ranked concepts are added.
+  
 - Adding the **MobileNet** backbone or **Places365** only requires extending `CONFIG`.
