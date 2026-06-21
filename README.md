@@ -1,4 +1,4 @@
-# LGMD — Language-Guided Matrix Decomposition
+# Concept Discovery via Language-Guided Matrix Decomposition
 
 Faithful re-implementation of *Interpretable Concept Discovery via Language-Guided
 Matrix Decomposition* (ECCV 2026, #11398). Post-hoc concept discovery that replaces
