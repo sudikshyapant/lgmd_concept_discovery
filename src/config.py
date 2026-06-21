@@ -40,19 +40,19 @@ for _d in (CACHE_DIR, RESULTS_DIR, VIZ_DIR):
     os.makedirs(_d, exist_ok=True)
 
 
-# Concept-generation prompt (paper routes the exact template to the supplementary;
-# this is our reconstruction). Uses {n} candidates and the class name {cls}.
-_CONCEPT_PROMPT = (
-    'List {n} short, visually-grounded visual concepts describing the appearance of a '
-    '"{cls}" in a photo.\n'
-    'Cover diverse attribute types: object parts, textures, shapes, materials, colors, '
-    'poses, and contextual elements.\n'
-    'Rules:\n'
-    '- Each concept is 1-3 words, lowercase, concrete and visual.\n'
-    '- Do NOT use any word from the class name "{cls}".\n'
-    '- No generic words like "object", "scene", or "background".\n'
-    'Return ONLY a JSON array of strings.'
-)
+# Stored concept vocabulary: a JSON table keyed by class name (replaces LLM
+# generation). Travels with the repo so runs are reproducible and offline. Each
+# class maps to candidate concepts (over-provided; filtered down to r in concepts.py).
+CONCEPT_VOCAB_PATH = os.path.join(REPO_ROOT, "concept_vocab.json")
+
+
+def _vocab_hash():
+    """Short hash of the vocabulary file so edits to it invalidate concept caches."""
+    if not os.path.exists(CONCEPT_VOCAB_PATH):
+        return "missing"
+    with open(CONCEPT_VOCAB_PATH, "rb") as f:
+        return hashlib.md5(f.read()).hexdigest()[:8]
+
 
 # Generic filler terms removed during concept filtering (paper rule i).
 _FILLER_TERMS = ["object", "scene", "thing", "things", "background",
@@ -87,11 +87,9 @@ CONFIG = {
 
     # --- concepts -------------------------------------------------------------
     "r": 25,                       # concepts per class (paper fixes r = 25)
-    "openai_model": "gpt-5",       # [suppl] LLM used to generate the vocabulary
-    "openai_temperature": None,    # [suppl] sampling temperature; None = omit (use model default)
-    "concept_prompt": _CONCEPT_PROMPT,       # [suppl] exact generation prompt template
+    "concept_vocab_path": CONCEPT_VOCAB_PATH,  # stored class -> concepts table (no LLM)
+    "concept_vocab_hash": _vocab_hash(),       # content hash for cache invalidation
     "concept_filler_terms": _FILLER_TERMS,   # [suppl] filler words removed (rule i)
-    "concept_overgen_factor": 2,   # [suppl] over-generate r*factor before filtering
     "dedup_threshold": 0.9,        # [suppl] CLIP-text cosine sim above which concepts are near-dups
 
     # --- optimization ---------------------------------------------------------
@@ -120,10 +118,8 @@ CONFIG = {
 # values it depends on, so changing any of those values rebuilds only the affected
 # caches. Call sites name the dependency groups (see below) that apply.
 _CACHE_DEPS = {
-    "data":  ["class_index", "n_train", "n_val", "seed"],                      # which images load/split
-    "model": ["backbone"],                                                     # backbone
-    "con":   ["openai_model", "openai_temperature", "concept_prompt",          # concept vocab
-              "concept_filler_terms", "concept_overgen_factor",
+    "act":   ["backbone", "class_index", "n_train", "n_val", "seed"],          # activations
+    "con":   ["concept_vocab_hash", "concept_filler_terms",                     # concept vocab
               "dedup_threshold", "r", "class_name", "clip_model"],
     "clip":  ["clip_model", "prompt_template", "circle_radius",                # CLIP maps S
               "circle_width", "circle_color", "grid"],

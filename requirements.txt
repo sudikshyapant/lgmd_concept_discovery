@@ -7,5 +7,4 @@ numpy
 pillow
 matplotlib
 tqdm
-openai
 huggingface_hub

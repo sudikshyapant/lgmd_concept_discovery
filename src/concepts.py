@@ -1,31 +1,45 @@
-"""Class-specific concept vocabulary generation via OpenAI + CLIP-based filtering.
+"""Class-specific concept vocabulary from a stored table + CLIP-based filtering.
 
-Following the paper (Sec 3.3): prompt an LLM for visually-grounded concepts, then
-filter out (i) generic filler terms, (ii) concepts overlapping the class name, and
-(iii) near-duplicates in CLIP text-embedding space. Result: exactly r concepts.
+Following the paper (Sec 3.3): start from a visually-grounded concept vocabulary,
+then filter out (i) generic filler terms, (ii) concepts overlapping the class name,
+and (iii) near-duplicates in CLIP text-embedding space. Result: exactly r concepts.
+
+The vocabulary is read from a stored JSON table (CONFIG["concept_vocab_path"]),
+keyed by class name — no external LLM API is used. Each class maps to a list of
+candidate concepts, given either as plain strings or as {"label": ...} objects
+(extra fields such as id / category / description are kept in the table but ignored
+here). The table is over-provided on purpose so the three filtering rules have
+headroom to land on exactly r concepts.
 """
 
 import json
 import os
 import re
 
-from config import CONFIG, cache_name, get_secret
+from config import CONFIG, cache_name
 
 
-def _generate_raw(cls, n):
-    """Ask the LLM for ~n candidate concepts (over-generate to survive filtering)."""
-    from openai import OpenAI
-    client = OpenAI(api_key=get_secret("OPENAI_API_KEY"))
-    kwargs = {
-        "model": CONFIG["openai_model"],
-        "messages": [{"role": "user", "content": CONFIG["concept_prompt"].format(n=n, cls=cls)}],
-    }
-    if CONFIG["openai_temperature"] is not None:        # some models accept only the default temperature
-        kwargs["temperature"] = CONFIG["openai_temperature"]
-    resp = client.chat.completions.create(**kwargs)
-    text = resp.choices[0].message.content
-    text = text[text.find("["): text.rfind("]") + 1]    # isolate the JSON array
-    return [c.strip().lower() for c in json.loads(text) if c.strip()]
+def _load_vocab(cls):
+    """Load the stored candidate concepts for `cls` (lowercased strings)."""
+    path = CONFIG["concept_vocab_path"]
+    if not os.path.exists(path):
+        raise FileNotFoundError(
+            f"Concept vocabulary table not found at {path}. "
+            f"Create it (see concept_vocab.json) keyed by class name."
+        )
+    with open(path) as f:
+        table = json.load(f)
+    if cls not in table:
+        raise KeyError(
+            f"No concept vocabulary for class '{cls}' in {path}. "
+            f"Available classes: {sorted(table)}"
+        )
+    raw = []
+    for c in table[cls]:
+        label = (c["label"] if isinstance(c, dict) else c).strip().lower()
+        if label:
+            raw.append(label)
+    return raw
 
 
 def _filter(concepts, cls, clip, threshold, r):
@@ -58,11 +72,11 @@ def get_concepts(clip):
             return json.load(f)
 
     cls, r = CONFIG["class_name"], CONFIG["r"]
-    raw = _generate_raw(cls, int(r * CONFIG["concept_overgen_factor"]))   # over-generate for headroom
+    raw = _load_vocab(cls)                                  # stored vocabulary (over-provided)
     concepts = _filter(raw, cls, clip, CONFIG["dedup_threshold"], r)
     if len(concepts) < r:
         raise RuntimeError(f"Only {len(concepts)}/{r} concepts survived filtering; "
-                           f"re-run or raise the over-generation factor.")
+                           f"add more candidates for '{cls}' in {CONFIG['concept_vocab_path']}.")
 
     with open(path, "w") as f:
         json.dump(concepts, f, indent=2)
