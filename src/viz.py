@@ -190,6 +190,81 @@ def plot_baseline_comparison(images, method_maps, out_name="fig3_baseline_compar
     return path
 
 
+def _crop_patch(img224, cell_idx, grid, patch_cells):
+    """Crop a (patch_cells x patch_cells)-cell window centered on a grid cell."""
+    side = img224.size[0]
+    cell = side / grid
+    i, j = divmod(int(cell_idx), grid)
+    cx, cy = (j + 0.5) * cell, (i + 0.5) * cell
+    half = patch_cells * cell / 2
+    box = (max(0, round(cx - half)), max(0, round(cy - half)),
+           min(side, round(cx + half)), min(side, round(cy + half)))
+    return img224.crop(box)
+
+
+def plot_concept_patches(images, S, concepts=None, top_concepts=3, n_patches=3,
+                         patch_cells=3, style="crop", out_name="fig3_concept_patches.png",
+                         title=None):
+    """Fig 3 (example-patch style): show each concept by its top-activating image regions.
+
+    A concept (column of S, shape (n*h*w, K)) is summarized by the images where it fires
+    strongest, taken at its peak spatial cell — example regions instead of a heatmap,
+    matching paper Fig 3. Rows are concepts (chosen by total activation mass), columns
+    are the top-activating images for that concept.
+
+    style:
+      "crop"    — crop the patch around the peak cell (CRAFT / FACE / LGMD; CRAFT/FACE
+                  pool spatially, so a cropped exemplar is the natural view).
+      "contour" — keep the full image and trace a red outline around the active region
+                  (ICE, which localizes on the pre-pool feature map -> "red circle regions").
+
+    `concepts` (names) labels the rows for LGMD; if None rows are unnamed components
+    ('comp #k'), as for the NMF baselines.
+    """
+    grid = CONFIG["grid"]
+    hw = grid * grid
+    S = torch.as_tensor(S)
+    K = S.shape[1]
+    Sr = S.reshape(len(images), hw, K)
+
+    chosen = torch.argsort(Sr.sum(dim=(0, 1)), descending=True)[:top_concepts].tolist()
+    imgs224 = [clip_preprocess(im) for im in images]
+    n_show = min(n_patches, len(images))
+
+    fig, axes = plt.subplots(len(chosen), n_show,
+                             figsize=(2.2 * n_show, 2.2 * len(chosen)))
+    axes = np.atleast_2d(axes)
+    if title:
+        fig.suptitle(title, fontsize=12)
+
+    for row, k in enumerate(chosen):
+        per_img = Sr[:, :, k]                                   # (n, hw)
+        top_imgs = torch.argsort(per_img.max(dim=1).values,
+                                 descending=True)[:n_show].tolist()
+        for col, im_idx in enumerate(top_imgs):
+            ax = axes[row, col]
+            cell = int(per_img[im_idx].argmax())
+            if style == "contour":                             # ICE: red region outline
+                ax.imshow(imgs224[im_idx])
+                ax.contour(_heatmap(Sr[im_idx, :, k], grid),
+                           levels=[0.6], colors="red", linewidths=1.5)
+            else:                                              # crop exemplar patch
+                ax.imshow(_crop_patch(imgs224[im_idx], cell, grid, patch_cells))
+            ax.axis("off")
+        label = concepts[k] if concepts else f"comp #{k}"
+        axes[row, 0].annotate(label, xy=(0, 0.5), xytext=(-12, 0),
+                              xycoords="axes fraction", textcoords="offset points",
+                              ha="right", va="center", rotation=90, fontsize=10,
+                              color="tab:blue" if concepts else "black")
+
+    path = os.path.join(CONFIG["viz_dir"], out_name)
+    plt.tight_layout()
+    plt.savefig(path, dpi=120, bbox_inches="tight")
+    plt.show()
+    print(f"[viz] saved {path}")
+    return path
+
+
 def render_metric_table(table, out_name, methods=("OURS", "FACE", "ICE", "CRAFT"),
                         backbones=("ResNet", "MobileNet"), value_fmt="{:.2f}",
                         higher_is_better=True, title=None):
@@ -202,12 +277,16 @@ def render_metric_table(table, out_name, methods=("OURS", "FACE", "ICE", "CRAFT"
     """
     cats = list(next(iter(table.values())).keys())
 
-    def fmt_row(cat, bb):
+    def _rank(cat, bb):
+        """Per-row rank of each method's value: 0 = best, 1 = second-best."""
         vals = [table[bb][cat].get(m, float("nan")) for m in methods]
         order = np.argsort(vals)
         if higher_is_better:
             order = order[::-1]
-        rank = {int(idx): pos for pos, idx in enumerate(order)}
+        return vals, {int(idx): pos for pos, idx in enumerate(order)}
+
+    def fmt_row(cat, bb):
+        vals, rank = _rank(cat, bb)
         cells = []
         for i, v in enumerate(vals):
             s = value_fmt.format(v)
@@ -225,6 +304,26 @@ def render_metric_table(table, out_name, methods=("OURS", "FACE", "ICE", "CRAFT"
         for bb in backbones:
             row += fmt_row(cat, bb)
         cell_text.append(row)
+
+    # plain-text version to stdout (best marked '*', second-best '^')
+    def text_row(cat):
+        row = [cat]
+        for bb in backbones:
+            vals, rank = _rank(cat, bb)
+            for i, v in enumerate(vals):
+                mark = "*" if rank.get(i) == 0 else "^" if rank.get(i) == 1 else " "
+                row.append(value_fmt.format(v) + mark)
+        return row
+
+    header = ["Category"] + col_labels
+    text_rows = [text_row(cat) for cat in cats]
+    widths = [max(len(r[i]) for r in [header] + text_rows) for i in range(len(header))]
+    if title:
+        print(title)
+    print("  ".join(h.ljust(widths[i]) for i, h in enumerate(header)))
+    for r in text_rows:
+        print("  ".join(c.ljust(widths[i]) for i, c in enumerate(r)))
+    print("(* best, ^ second-best)")
 
     fig, ax = plt.subplots(figsize=(1.4 * (len(col_labels) + 1), 0.5 * (len(cats) + 1)))
     ax.axis("off")
