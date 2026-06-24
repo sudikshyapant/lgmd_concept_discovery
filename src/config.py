@@ -90,7 +90,7 @@ _ATTRIBUTE_TERMS = [
 # change them in this one place once the supplementary is available.
 CONFIG = {
     # --- data -----------------------------------------------------------------
-    "dataset": "imagenet-1k",
+    "dataset": "ILSVRC/imagenet-1k",   # https://huggingface.co/datasets/ILSVRC/imagenet-1k (gated)
     "class_synset": "n02123045",   # tabby cat
     "class_index": 281,            # ImageNet-1k label index for "tabby, tabby cat"
     "class_name": "tabby cat",
