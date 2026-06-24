@@ -160,7 +160,8 @@ CONFIG = {
 # values it depends on, so changing any of those values rebuilds only the affected
 # caches. Call sites name the dependency groups (see below) that apply.
 _CACHE_DEPS = {
-    "act":   ["backbone", "class_index", "n_train", "n_val", "seed"],          # activations
+    "data":  ["class_index", "n_train", "n_val", "seed"],                       # which images
+    "model": ["backbone"],                                                      # encoder backbone
     "con":   ["concept_vocab_hash", "concept_filler_terms",                     # concept vocab
               "concept_attribute_terms", "concept_word_min", "concept_word_max",
               "concept_proto_images", "dedup_threshold", "r", "class_name", "clip_model"],
