@@ -54,9 +54,35 @@ def _vocab_hash():
         return hashlib.md5(f.read()).hexdigest()[:8]
 
 
-# Generic filler terms removed during concept filtering (paper rule i).
+# Generic filler terms removed during concept filtering (rule i; suppl. A1.3 lists
+# "animal", "object", "scene" as examples).
 _FILLER_TERMS = ["object", "scene", "thing", "things", "background",
-                 "image", "photo", "picture", "stuff", "item"]
+                 "image", "photo", "picture", "stuff", "item", "animal"]
+
+# Visual-attribute lexicon (suppl. A1.3): a concept carrying any of these words is
+# preserved even when it partially overlaps the class name. Representative words
+# across the categories the supplementary names (color / texture / parts / shape /
+# pose-motion / environment / material).
+_ATTRIBUTE_TERMS = [
+    # color
+    "yellow", "black", "white", "brown", "orange", "gray", "grey", "red",
+    "blue", "green", "golden", "amber", "pink", "tan",
+    # texture
+    "furry", "fluffy", "shiny", "glossy", "smooth", "rough", "striped",
+    "spotted", "mottled", "speckled",
+    # parts
+    "tail", "wings", "ears", "eyes", "paws", "legs", "beak", "fur", "whiskers",
+    "claws", "nose", "teeth", "pupils", "irises", "markings",
+    # shape
+    "long", "short", "round", "curved", "pointed", "flat", "thin", "thick",
+    # pose / motion
+    "running", "flying", "sitting", "standing", "jumping", "perched", "walking",
+    "crouching", "stalking",
+    # environment
+    "forest", "ocean", "grass", "indoor", "outdoor", "water", "sky", "tree", "ground",
+    # material
+    "metal", "wood", "stone", "glass", "plastic", "leather", "brick",
+]
 
 
 # NOTE: keys tagged [suppl] are NOT specified in the paper body — their exact values
@@ -76,21 +102,25 @@ CONFIG = {
     # Paper tables use ResNet34 + MobileNetV2. Switch via this key; feat_dim follows.
     "backbone": "resnet34",        # "resnet34" | "mobilenet_v2" | "resnet50"
     "feat_dim": 512,               # p — encoder channels (resnet34=512, mobilenet_v2=1280, resnet50=2048)
-    "grid": 7,                     # h = w — encoder spatial resolution at 224px input
+    "grid": 7,                     # h = w — encoder / CLIP probing grid, 7x7 (suppl. A1.6)
 
     # --- CLIP (localized similarity maps) -------------------------------------
-    "clip_model": "openai/clip-vit-base-patch16",   # [suppl] which CLIP variant
-    "prompt_template": "a photo of {}",              # paper's text prompt (Sec 3.3)
-    "circle_radius": 16,           # [suppl] red-circle radius (px) for localized prompting
-    "circle_width": 3,             # [suppl] red-circle stroke width (px)
-    "circle_color": "red",         # [suppl] localization marker color
+    "clip_model": "openai/clip-vit-base-patch16",   # CLIP ViT-B/16 (suppl. A1.6); stated open_clip alt: laion2b_s34b_b88k
+    "prompt_template": "a photo of {}",              # "a photo of c" text prompt (suppl. A1.4 / A1.6)
+    "circle_radius": 16,           # [suppl] red-circle radius (px) — suppl. A1.6 fixes a radius but gives no value
+    "circle_width": 3,             # [suppl] red-circle stroke width (px) — "thin" outline, value unspecified
+    "circle_color": "red",         # red localization marker (suppl. A1.6)
 
     # --- concepts -------------------------------------------------------------
     "r": 25,                       # concepts per class (paper fixes r = 25)
     "concept_vocab_path": CONCEPT_VOCAB_PATH,  # stored class -> concepts table (no LLM)
     "concept_vocab_hash": _vocab_hash(),       # content hash for cache invalidation
-    "concept_filler_terms": _FILLER_TERMS,   # [suppl] filler words removed (rule i)
-    "dedup_threshold": 0.9,        # [suppl] CLIP-text cosine sim above which concepts are near-dups
+    "concept_word_min": 2,         # lexical filter: concepts must be 2-3 words (suppl. A1.3)
+    "concept_word_max": 3,
+    "concept_filler_terms": _FILLER_TERMS,        # generic filler removed, rule i (suppl. A1.3)
+    "concept_attribute_terms": _ATTRIBUTE_TERMS,  # attribute words exempt from class-name overlap (suppl. A1.3)
+    "concept_proto_images": 100,   # up to N class images for CLIP relevance ranking (suppl. A1.4)
+    "dedup_threshold": 0.80,       # CLIP-text cosine sim above which concepts are near-dups (suppl. A1.4)
 
     # --- optimization ---------------------------------------------------------
     # NOTE: PGD step sizes are NOT free params — the paper fixes them via the spectral
@@ -107,6 +137,18 @@ CONFIG = {
     # --- metrics --------------------------------------------------------------
     "cins_metric": "prob",         # [suppl] C-Ins 'model performance': "prob" | "accuracy"
 
+    # --- Places365 classifier training (suppl. A3) ----------------------------
+    # Only used when training scene classifiers for the Places365 extension. The
+    # ImageNet path uses pretrained backbones and ignores these. Reported test
+    # accuracies in the paper: MobileNetV2 86.73%, ResNet34 82.61%.
+    "places365_classes": ["home theater", "kitchen", "living room", "patio",
+                          "restaurant", "roof garden", "toyshop",
+                          "train station-platform"],
+    "places365_optimizer": "adamw",
+    "places365_lr": 3e-4,
+    "places365_batch_size": 64,
+    "places365_epochs": 12,
+
     # --- paths ----------------------------------------------------------------
     "cache_dir": CACHE_DIR,
     "results_dir": RESULTS_DIR,
@@ -120,7 +162,8 @@ CONFIG = {
 _CACHE_DEPS = {
     "act":   ["backbone", "class_index", "n_train", "n_val", "seed"],          # activations
     "con":   ["concept_vocab_hash", "concept_filler_terms",                     # concept vocab
-              "dedup_threshold", "r", "class_name", "clip_model"],
+              "concept_attribute_terms", "concept_word_min", "concept_word_max",
+              "concept_proto_images", "dedup_threshold", "r", "class_name", "clip_model"],
     "clip":  ["clip_model", "prompt_template", "circle_radius",                # CLIP maps S
               "circle_width", "circle_color", "grid"],
     "pgd":   ["pgd_iters"],                                                    # basis W fit
