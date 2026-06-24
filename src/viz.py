@@ -47,7 +47,7 @@ def save_concept_overlays(images, S_hat, concepts, out_name="overlays.png", max_
     path = os.path.join(CONFIG["viz_dir"], out_name)
     plt.tight_layout()
     plt.savefig(path, dpi=120, bbox_inches="tight")
-    plt.close()
+    plt.show()
     print(f"[viz] saved {path}")
     return path
 
@@ -95,7 +95,7 @@ def plot_score_distributions(S_before, S_after, out_name="fig4_score_distributio
     path = os.path.join(CONFIG["viz_dir"], out_name)
     plt.tight_layout()
     plt.savefig(path, dpi=120, bbox_inches="tight")
-    plt.close()
+    plt.show()
     print(f"[viz] saved {path}")
     return path
 
@@ -131,7 +131,7 @@ def plot_concept_heatmaps(images, S_hat, concepts, img_index=0, which=None, top_
     path = os.path.join(CONFIG["viz_dir"], out_name)
     plt.tight_layout()
     plt.savefig(path, dpi=120, bbox_inches="tight")
-    plt.close()
+    plt.show()
     print(f"[viz] saved {path}")
     return path
 
@@ -185,7 +185,7 @@ def plot_baseline_comparison(images, method_maps, out_name="fig3_baseline_compar
     path = os.path.join(CONFIG["viz_dir"], out_name)
     plt.tight_layout()
     plt.savefig(path, dpi=120, bbox_inches="tight")
-    plt.close()
+    plt.show()
     print(f"[viz] saved {path}")
     return path
 
@@ -238,6 +238,6 @@ def render_metric_table(table, out_name, methods=("OURS", "FACE", "ICE", "CRAFT"
 
     path = os.path.join(CONFIG["viz_dir"], out_name)
     plt.savefig(path, dpi=150, bbox_inches="tight")
-    plt.close()
+    plt.show()
     print(f"[viz] saved {path}")
     return path
