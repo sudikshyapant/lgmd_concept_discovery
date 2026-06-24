@@ -26,10 +26,17 @@ class CLIP:
         self.model = CLIPModel.from_pretrained(name).to(DEVICE).eval()
         self.proc = CLIPProcessor.from_pretrained(name)
 
+    @staticmethod
+    def _features(out):
+        # transformers >=5.0 changed get_{text,image}_features to return a
+        # BaseModelOutputWithPooling (projected embedding in .pooler_output) instead
+        # of a raw tensor; accept both so we work across versions.
+        return out if torch.is_tensor(out) else out.pooler_output
+
     @torch.no_grad()
     def embed_text(self, texts):
         inp = self.proc(text=list(texts), return_tensors="pt", padding=True).to(DEVICE)
-        e = self.model.get_text_features(**inp)
+        e = self._features(self.model.get_text_features(**inp))
         return F.normalize(e, dim=-1).cpu()
 
     @torch.no_grad()
@@ -37,7 +44,7 @@ class CLIP:
         # Images are already 224x224 (CLIP geometric preprocessing done upstream),
         # so the processor's resize/center-crop are effectively no-ops.
         inp = self.proc(images=list(pil_images), return_tensors="pt").to(DEVICE)
-        e = self.model.get_image_features(**inp)
+        e = self._features(self.model.get_image_features(**inp))
         return F.normalize(e, dim=-1).cpu()
 
 
