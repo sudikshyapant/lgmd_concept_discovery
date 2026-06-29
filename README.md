@@ -18,7 +18,11 @@ the paper.
    !git clone https://github.com/<you>/lgmd.git
    %cd lgmd
    !pip -q install -r requirements.txt
+   !git config core.hooksPath .githooks   # enable the pre-commit notebook cleaner
    ```
+   The `.githooks/pre-commit` hook strips the malformed `metadata.widgets` block that
+   Colab writes into notebooks (it breaks GitHub rendering). 
+   
 3. Add secrets in the Colab **Secrets** panel (key icon):
    - `HF_TOKEN` — HuggingFace token that has **accepted the gated ImageNet-1k terms**
 4. Open `lgmd.ipynb` and run top-to-bottom. Importing `config` auto-mounts Google Drive;
