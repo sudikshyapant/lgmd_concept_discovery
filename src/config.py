@@ -102,6 +102,10 @@ CONFIG = {
     # Paper tables use ResNet34 + MobileNetV2. Switch via this key; feat_dim follows.
     "backbone": "resnet34",        # "resnet34" | "mobilenet_v2" | "resnet50"
     "feat_dim": 512,               # p — encoder channels (resnet34=512, mobilenet_v2=1280, resnet50=2048)
+    # Backbone preprocessing: "clip_shared_224" shares CLIP's exact 224 crop so encoder
+    # feature cells and CLIP red-circle cells cover identical pixels (aligns A_bar <-> S).
+    # Part of the activation cache key so changing it recomputes activations.
+    "backbone_preprocess": "clip_shared_224",
     "grid": 7,                     # h = w — encoder / CLIP probing grid, 7x7 (suppl. A1.6)
 
     # --- CLIP (localized similarity maps) -------------------------------------
@@ -161,7 +165,7 @@ CONFIG = {
 # caches. Call sites name the dependency groups (see below) that apply.
 _CACHE_DEPS = {
     "data":  ["class_index", "n_train", "n_val", "seed"],                       # which images
-    "model": ["backbone"],                                                      # encoder backbone
+    "model": ["backbone", "backbone_preprocess"],                               # encoder backbone + preprocessing
     "con":   ["concept_vocab_hash", "concept_filler_terms",                     # concept vocab
               "concept_attribute_terms", "concept_word_min", "concept_word_max",
               "concept_proto_images", "dedup_threshold", "r", "class_name", "clip_model"],

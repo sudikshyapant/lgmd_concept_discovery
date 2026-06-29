@@ -22,13 +22,32 @@ _BACKBONES = {
 }
 
 
+def _aligned_transform(weights):
+    """Backbone preprocessing that shares CLIP's exact 224 crop.
+
+    The encoder feature cell (i, j) and the CLIP red-circle cell (i, j) must cover the
+    same pixels, or the rows of A_bar and S (both unfolded row-major) describe slightly
+    different image regions and S picks up spatial slop. We reuse `clip_preprocess`
+    (resize shortest-side -> 224, center crop) for geometry, then apply ONLY the weights'
+    ToTensor + Normalize -- deliberately skipping the weights' own resize/crop, which
+    would re-zoom to the backbone's native (e.g. 256->224) field of view.
+    """
+    from torchvision.transforms import Compose, Normalize, ToTensor
+
+    from data_utils import clip_preprocess
+
+    base = weights.transforms()                          # exposes ImageNet mean/std
+    normalize = Compose([ToTensor(), Normalize(base.mean, base.std)])
+    return lambda img: normalize(clip_preprocess(img))
+
+
 def load_backbone(name=None):
-    """Load a pretrained backbone and its matching preprocessing transform."""
+    """Load a pretrained backbone and a CLIP-aligned preprocessing transform."""
     from config import CONFIG
     name = name or CONFIG["backbone"]
     ctor, weights = _BACKBONES[name]
     model = ctor(weights=weights).to(DEVICE).eval()
-    return model, weights.transforms()
+    return model, _aligned_transform(weights)
 
 
 def _is_mobilenet(model):
