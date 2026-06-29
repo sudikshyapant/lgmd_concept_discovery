@@ -17,10 +17,13 @@ The method is reproduced faithfully, but at a smaller scale. Known differences:
 - **Concepts come from a file, not an LLM.** The paper generates candidate concepts with
   an LLM. We read them from `concept_vocab.json` and then apply the paper's CLIP filter,
   so runs are reproducible and offline.
-- **Some hyperparameters are best guesses.** Values the paper gives only in its
-  supplementary (red-circle size, PGD iteration counts, CRAFT depth, FACE settings, the
-  C-Ins metric) are marked `[suppl]` in `config.py`. Update them there once the
-  supplementary is available.
+- **A few numeric hyperparameters are still best guesses.** The supplementary material
+  *is* incorporated — its concept-filtering rules (A1.3/A1.4), CLIP setup and red-circle
+  prompting (A1.6), and the Places365 extension with its reported accuracies (A3) all
+  follow it. What remains are a handful of values it describes only qualitatively
+  (red-circle radius and stroke width, PGD iteration counts, CRAFT depth, FACE settings,
+  the C-Ins metric choice): these stay marked `[suppl]` in `config.py` as informed
+  defaults you can tune.
 - **Backbone and CLIP share one image crop.** Both read the same 224×224 crop so their
   7×7 grids line up cell-for-cell. This keeps the concept maps spatially accurate.
 
