@@ -9,7 +9,7 @@ coefficient matrix S used in the reconstruction A_bar ~ S W^T.
 import torch
 import torch.nn.functional as F
 from PIL import ImageDraw
-from tqdm.auto import tqdm
+from tqdm import tqdm
 
 from config import CONFIG
 from data_utils import clip_preprocess

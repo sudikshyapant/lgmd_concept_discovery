@@ -6,7 +6,7 @@ Inference (Sec 3.5):  min_{S_hat>=0} 1/2 ||S_hat W^T - A_bar||_F^2  (W fixed, le
 
 import torch
 from sklearn.decomposition._nmf import _initialize_nmf
-from tqdm.auto import tqdm
+from tqdm import tqdm
 
 from config import CONFIG
 

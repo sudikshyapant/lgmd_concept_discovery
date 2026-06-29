@@ -2,7 +2,7 @@
 
 from datasets import load_dataset
 from PIL import Image
-from tqdm.auto import tqdm
+from tqdm import tqdm
 
 from config import CONFIG, get_secret
 

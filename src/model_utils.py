@@ -11,7 +11,7 @@ same encoder/head abstraction so the rest of the pipeline is backbone-agnostic.
 import torch
 import torch.nn.functional as F
 import torchvision
-from tqdm.auto import tqdm
+from tqdm import tqdm
 
 DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
 

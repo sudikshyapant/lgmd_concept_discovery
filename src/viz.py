@@ -11,7 +11,7 @@ import numpy as np
 import torch
 import torch.nn.functional as F
 from matplotlib import pyplot as plt
-from tqdm.auto import tqdm
+from tqdm import tqdm
 
 from config import CONFIG
 from data_utils import clip_preprocess
