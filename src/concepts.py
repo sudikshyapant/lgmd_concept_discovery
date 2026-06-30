@@ -24,8 +24,23 @@ import re
 from config import CONFIG, cache_name
 
 
+def _canonical_key(name):
+    """Canonical snake_case key for a class name (ML-standard identifier).
+
+    Lowercases and collapses runs of whitespace/hyphens to single underscores,
+    e.g. 'Great White Shark' -> 'great_white_shark'. Keys in concept_vocab.json
+    use this form; CONFIG['class_name'] may be the human-readable variant.
+    """
+    return re.sub(r"[\s\-]+", "_", name.strip().lower())
+
+
 def _load_vocab(cls):
-    """Load the stored candidate concepts for `cls` (lowercased strings)."""
+    """Load the stored candidate concepts for `cls` (lowercased strings).
+
+    The vocab table is keyed by snake_case identifiers, but `cls` is typically the
+    human-readable class name (e.g. 'tabby cat'); we match by canonical key so
+    either form resolves.
+    """
     path = CONFIG["concept_vocab_path"]
     if not os.path.exists(path):
         raise FileNotFoundError(
@@ -34,13 +49,15 @@ def _load_vocab(cls):
         )
     with open(path) as f:
         table = json.load(f)
-    if cls not in table:
+    canon = {_canonical_key(k): k for k in table}
+    key = canon.get(_canonical_key(cls))
+    if key is None:
         raise KeyError(
             f"No concept vocabulary for class '{cls}' in {path}. "
             f"Available classes: {sorted(table)}"
         )
     raw = []
-    for c in table[cls]:
+    for c in table[key]:
         label = (c["label"] if isinstance(c, dict) else c).strip().lower()
         if label:
             raw.append(label)
